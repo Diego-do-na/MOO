@@ -1,4 +1,4 @@
-# Ganadería IoT RPi - Sistema de Telemetría y Geocerca
+# MOO IoT - Sistema de Telemetría y Geocerca
 
 Este repositorio contiene el *backend* completo para un sistema de monitoreo de ganado. El sistema recibe datos de telemetría (ubicación, temperatura, pulso) vía MQTT, los procesa, detecta alertas de geocerca y salud crítica, y los almacena en una base de datos PostgreSQL, sirviéndolos a través de una API Flask.
 
