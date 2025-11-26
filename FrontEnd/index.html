@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>IoT Dashboard</title>
+    <link rel="stylesheet" href="./style.css">
+
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #1e88e5; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+
+        .controls { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; background-color: #f9f9f9; }
+        .controls label { font-weight: bold; margin-right: 10px; }
+        .controls select { padding: 8px; border-radius: 4px; border: 1px solid #aaa; }
+        .controls button { padding: 8px 15px; background-color: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
+        .controls button:hover { background-color: #43a047; }
+
+        .card { border: 1px solid #ddd; border-radius: 6px; padding: 20px; margin-bottom: 20px; background-color: #ffffff; }
+        .card-header { background-color: #1e88e5; color: white; padding: 10px; margin: -20px -20px 20px -20px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-size: 1.2em; }
+        .card p { margin: 5px 0; }
+        .card strong { display: inline-block; width: 140px; }
+
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚙️ IoT Dashboard Interactivo</h1>
+
+        <div class="controls">
+            <label for="device_selector">Seleccionar dispositivo:</label>
+            <select id="device_selector">
+                <option value="all">Todos</option>
+            </select>
+            <button onclick="loadDashboard()">Mostrar</button>
+        </div>
+
+        <h2 id="resultadoTitulo">Resultados para: Todos</h2>
+
+        <div id="results" class="results">
+            <p>Cargando datos...</p>
+        </div>
+    </div>
+
+<script>
+    const API_URL = "https://TU_BACKEND_AQUI";   // <-- CAMBIA ESTO
+
+    async function loadDeviceList() {
+        try {
+            const res = await fetch(API_URL + "/devices");
+            const devices = await res.json();
+
+            const selector = document.getElementById("device_selector");
+
+            devices.forEach(id => {
+                const option = document.createElement("option");
+                option.value = id;
+                option.textContent = "Sensor " + id;
+                selector.appendChild(option);
+            });
+
+        } catch(error) {
+            console.error("Error cargando dispositivos:", error);
+        }
+    }
+
+    async function loadDashboard() {
+        const deviceId = document.getElementById("device_selector").value;
+        const resultsDiv = document.getElementById("results");
+        const title = document.getElementById("resultadoTitulo");
+
+        title.innerText = deviceId === "all"
+            ? "Resultados para: Todos los dispositivos"
+            : `Resultados para: Sensor ${deviceId}`;
+
+        resultsDiv.innerHTML = "<p>Cargando datos...</p>";
+
+        let url = deviceId === "all"
+            ? API_URL + "/dashboard"
+            : API_URL + `/sensor/${deviceId}`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (deviceId === "all") {
+                mostrarTodos(data);
+            } else {
+                mostrarUno(data, deviceId);
+            }
+
+        } catch (error) {
+            resultsDiv.innerHTML = `<p style="color:red">Error al conectar con el backend.</p>`;
+            console.error(error);
+        }
+    }
+
+    function mostrarTodos(data) {
+        const resultsDiv = document.getElementById("results");
+        let html = `<div class="card-grid">`;
+
+        for (const id in data) {
+            const d = data[id];
+
+            if (d.error) {
+                html += `
+                    <div class="card" style="border-color: red;">
+                        <div class="card-header" style="background-color:#d32f2f;">Sensor ${id} (ERROR)</div>
+                        <p><strong>Error:</strong> ${d.error}</p>
+                    </div>
+                `;
+            } else {
+                html += `
+                    <div class="card">
+                        <div class="card-header">Sensor ${d.sensor_id}</div>
+                        <p><strong>ID:</strong> ${d.sensor_id}</p>
+                        <p><strong>Último Valor:</strong> ${d.latest_value}</p>
+                        <p><strong>Última Lectura:</strong> ${d.latest_timestamp}</p>
+                        <p><strong>Total de Lecturas:</strong> ${d.total_readings}</p>
+                    </div>
+                `;
+            }
+        }
+
+        html += `</div>`;
+        resultsDiv.innerHTML = html;
+    }
+
+    function mostrarUno(data, deviceId) {
+        const resultsDiv = document.getElementById("results");
+
+        if (data.error) {
+            resultsDiv.innerHTML = `
+                <div class="card" style="border-color:red;">
+                    <div class="card-header" style="background-color:#d32f2f;">Sensor ${deviceId} (ERROR)</div>
+                    <p>${data.error}</p>
+                </div>
+            `;
+            return;
+        }
+
+        resultsDiv.innerHTML = `
+            <div class="card">
+                <div class="card-header">Detalle Sensor ${data.sensor_id}</div>
+                <p><strong>ID del Sensor:</strong> ${data.sensor_id}</p>
+                <p><strong>Último Valor:</strong> <span style="font-size:1.5em; color:#ff9800;">${data.latest_value}</span></p>
+                <p><strong>Hora de Lectura:</strong> ${data.latest_timestamp}</p>
+                <p><strong>Lecturas Totales:</strong> ${data.total_readings}</p>
+            </div>
+        `;
+    }
+
+    // Cargar automáticamente al entrar
+    loadDeviceList();
+    loadDashboard();
+</script>
+
+</body>
+</html>
