@@ -1,0 +1,95 @@
+/* --- Variables para una gestión de colores moderna --- */
+:root {
+    --primary-color: #007bff; /* Azul vibrante */
+    --secondary-color: #6c757d; /* Gris para textos secundarios */
+    --background-light: #f6f9fc; /* Fondo muy claro */
+    --white: #ffffff;
+    --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08); /* Sombra suave y amplia */
+    --border-radius-lg: 12px;
+}
+
+body {
+    /* Fuente moderna y sutil */
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--background-light);
+    color: #343a40; /* Texto oscuro pero no negro puro */
+    margin: 0;
+    padding: 30px; /* Aumento de padding para más aire */
+    line-height: 1.6;
+}
+
+.container {
+    background: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: 40px; /* Más padding para contenido */
+    /* Sombra moderna y con profundidad */
+    box-shadow: var(--shadow-soft);
+    max-width: 900px; /* Un poco más ancho */
+    margin: 0 auto;
+    /* Transición suave para cualquier cambio de estado (ej: hover en el contenedor) */
+    transition: all 0.3s ease;
+}
+
+.container:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12); /* Sombra ligeramente más intensa al pasar el ratón */
+}
+
+h1, h2 {
+    color: #212529;
+    text-align: center;
+    margin-bottom: 25px;
+    font-weight: 600; /* Ligeramente más grueso */
+    letter-spacing: -0.5px; /* Ajuste sutil del espaciado */
+}
+
+/* --- Estilos de Tabla modernos --- */
+table {
+    width: 100%;
+    border-collapse: separate; /* Permite border-radius en las celdas */
+    border-spacing: 0;
+    margin-top: 25px;
+    border-radius: var(--border-radius-lg);
+    overflow: hidden; /* Asegura que las esquinas redondeadas funcionen */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Sombra ligera en toda la tabla */
+}
+
+th, td {
+    padding: 15px; /* Más padding */
+    text-align: left; /* Alineación a la izquierda es más común */
+}
+
+th {
+    background-color: var(--primary-color);
+    color: var(--white);
+    font-weight: 700;
+    text-transform: uppercase; /* Encabezados en mayúsculas */
+    letter-spacing: 0.5px;
+}
+
+td {
+    background-color: var(--white);
+    border-bottom: 1px solid #e9ecef; /* Línea divisoria muy clara */
+    transition: background-color 0.2s ease;
+}
+
+/* Rayas de cebra modernas */
+tr:nth-child(even) td {
+    background-color: #f8f9fa; 
+}
+
+/* Efecto de pasar el ratón por las filas */
+tr:hover td {
+    background-color: #e2f0ff; /* Resaltado suave y azulado */
+}
+
+/* --- Estilos para el elemento Canvas (Gráficos) --- */
+canvas {
+    margin-top: 30px;
+    /* Borde sutil y sombra alrededor del gráfico */
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 100%;
+    display: block;
+}
