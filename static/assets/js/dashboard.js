@@ -25,10 +25,10 @@ const cowMarkers = {}; // Almacena los marcadores de las vacas por ID
 
 const alertsContainer = document.getElementById('alerts-list-content');
 
-function zoomToCow(cowId) {
+function zoomToCow(vacaId) {
     if (!map) return; // Salir si el mapa no está inicializado
 
-    const marker = cowMarkers[cowId];
+    const marker = cowMarkers[vacaId];
 
     if (marker) {
         const latLng = marker.getLatLng();
@@ -39,7 +39,7 @@ function zoomToCow(cowId) {
         // Abrir el popup
         marker.openPopup();
     } else {
-        console.warn(`No se encontró el marcador para el ID de vaca: ${cowId}.`);
+        console.warn(`No se encontró el marcador para el ID de vaca: ${vacaId}.`);
     }
 }
 
