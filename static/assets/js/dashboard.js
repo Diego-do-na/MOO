@@ -74,7 +74,7 @@ async function initializeMap() {
 
     if (!geofenceData || geofenceData.error) {
         // Usar coordenadas de prueba si la API falla
-        const pastureCenter = [20.11, -99.22];
+        const pastureCenter = [20.73, -103.46];
         map = L.map('cow-tracking-map').setView(pastureCenter, 16);
 
         // Ocultar mapa o mostrar error si la geocerca es nula
