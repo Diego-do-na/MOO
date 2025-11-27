@@ -17,6 +17,7 @@ let map = null;
 let geofenceCircle = null;
 const cowMarkers = {}; // Almacena los marcadores de las vacas por ID
 
+@param {string} cowId
 // ----------------------------------------------------------------------
 // 2. INICIALIZACIÓN DEL MAPA
 // ----------------------------------------------------------------------
@@ -24,6 +25,24 @@ const cowMarkers = {}; // Almacena los marcadores de las vacas por ID
 
 
 const alertsContainer = document.getElementById('alerts-list-content');
+
+function zoomToCow(cowId) {
+    if (!map) return; // Salir si el mapa no está inicializado
+
+    const marker = cowMarkers[cowId];
+
+    if (marker) {
+        const latLng = marker.getLatLng();
+        
+        // Centrar el mapa en la ubicación del marcador con un buen nivel de zoom (16)
+        map.setView(latLng, 16); 
+
+        // Abrir el popup
+        marker.openPopup();
+    } else {
+        console.warn(`No se encontró el marcador para el ID de vaca: ${cowId}.`);
+    }
+}
 
 // 2. Función para obtener y mostrar alertas
 async function updateAlerts() {
@@ -163,7 +182,7 @@ function createCowTableRow(vacaId, lat, lng, temp, pulso, riesgo) {
 
     return `
         <tr>
-          <td class="px-0">
+          <td class="px-0 cow-id-link" data-cow-id="${vacaId}" style="cursor: pointer;">
             <h6 class="mb-0 fw-bolder">${vacaId}</h6>
           </td>
           <td class="px-0">${lat.toFixed(5)}, ${lng.toFixed(5)}</td>
