@@ -5,8 +5,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MOO!</title>
-  <link rel="shortcut icon" type="image/png" href="./assets/images/logos/MOO!-min.png" />
-  <link rel="stylesheet" href="./assets/css/styles.min.css" />
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='assets/images/logos/MOO!-min.png') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/styles.min.css') }}" />
+  <img src="{{ url_for('static', filename='assets/images/logos/MOO!.png') }}" alt="" width="100">
+
+  <script src="{{ url_for('static', filename='assets/js/dashboard_integration.js') }}"></script>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
