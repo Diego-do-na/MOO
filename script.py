@@ -189,7 +189,7 @@ def get_active_alerts():
         cur.execute("""
                     SELECT id_vaca, ts, tipo_alerta, mensaje, lat, lng
                     FROM alertas
-                    ORDER BY ts DESC LIMIT 20;
+                    ORDER BY ts DESC LIMIT 6;
                     """)
 
         column_names = [desc[0] for desc in cur.description]
