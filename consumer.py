@@ -64,12 +64,12 @@ def on_message(client, userdata, msg):
         # --- INSERCIÓN DE DATOS BRUTOS ---
         cur.execute("""
             INSERT INTO ubicacion(id_vaca, ts, lat, lng, area)
-            VALUES (%s,NOW(),%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s)
         """, (id_vaca, ts, lat, lng, area))
 
         cur.execute("""
             INSERT INTO salud(id_vaca, ts, temperatura, pulso, riesgo)
-            VALUES (%s,NOW(),%s,%s,%s)
+            VALUES (%s,%s,%s,%s,%s)
         """, (id_vaca, ts, temp, pulso, riesgo))
 
         
