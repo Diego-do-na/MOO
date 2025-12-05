@@ -3,8 +3,6 @@ import paho.mqtt.client as mqtt
 import psycopg2
 import math
 from datetime import datetime, timedelta
-import os
-from dotenv import load_dotenv
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
