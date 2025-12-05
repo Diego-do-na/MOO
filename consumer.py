@@ -119,7 +119,7 @@ client = mqtt.Client()
 client.on_message = on_message
 
 try:
-    client.connect("localhost", 1883, 60)
+    client.connect("broker.mqtt.cool", 1883, 60)
     client.subscribe("vaca/telemetria")
     print("✅ Suscrito a vaca/telemetria. Escuchando mensajes...")
     client.loop_forever()
