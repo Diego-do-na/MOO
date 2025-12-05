@@ -150,3 +150,98 @@ def on_message(client, userdata, msg):
 
     try:
         data = json.loads(msg.payload.decode())
+        
+        # --- GENERACIÓN DE TIMESTAMP CORRECTO ---
+        # Usamos la hora actual del servidor (UTC) en formato ISO.
+        # Esto asegura un formato compatible con PostgreSQL y precisión.
+        ts_now = datetime.utcnow().isoformat()
+        
+        # Extracción de datos
+        id_vaca = data.get("id_vaca")
+        lat = data.get("lat")
+        lng = data.get("lng")
+        # Asumiendo un valor fijo para el área (requerido por la DB)
+        area = data.get("area", "TEC") 
+        temp = data.get("temperatura")
+        pulso = data.get("pulso")
+        riesgo = data.get("riesgo")
+
+        # Verificación básica de datos esenciales
+        if None in [id_vaca, lat, lng, temp, pulso, riesgo]:
+            print(f"Datos faltantes en el payload: {data}")
+            return
+            
+        # --- INSERCIÓN DE DATOS BRUTOS ---
+        cur.execute("""
+            INSERT INTO ubicacion(id_vaca, ts, lat, lng, area)
+            VALUES (%s,%s,%s,%s,%s)
+        """, (id_vaca, ts_now, lat, lng, area)) 
+
+        cur.execute("""
+            INSERT INTO salud(id_vaca, ts, temperatura, pulso, riesgo)
+            VALUES (%s,%s,%s,%s,%s)
+        """, (id_vaca, ts_now, temp, pulso, riesgo))
+
+        # --- DETECCIÓN DE ALERTAS ---
+        alertas_detectadas = check_for_alerts(id_vaca, temp, pulso, lat, lng, riesgo)
+
+        # --- INSERCIÓN DE ALERTAS ---
+        for alerta in alertas_detectadas:
+            cur.execute("""
+                INSERT INTO alertas(id_vaca, ts, tipo_alerta, mensaje, lat, lng)
+                VALUES (%s, %s, %s, %s, %s, %s);
+            """, (id_vaca, ts_now, alerta['tipo'], alerta['mensaje'], alerta['lat'], alerta['lng']))
+        
+        # Confirmar los cambios en la base de datos
+        conn.commit()
+        print(f"Datos y {len(alertas_detectadas)} alertas insertadas para la Vaca {id_vaca} a las {ts_now}")
+        
+    except json.JSONDecodeError:
+        print(f"Error decodificando JSON: {msg.payload}")
+    except KeyError as e:
+        print(f"Error: Clave faltante en el payload: {e}")
+    except psycopg2.Error as e:
+        print(f"Error de base de datos al insertar datos: {e}")
+        if conn:
+            conn.rollback() # Deshacer la transacción si hay error
+    except Exception as e:
+        print(f"Error inesperado en on_message: {e}")
+
+
+# --- 5. FUNCIÓN PRINCIPAL DE EJECUCIÓN ---
+
+def main():
+    # 1. Establecer conexión DB
+    get_db_connection()
+    if not conn:
+        print("No se pudo iniciar el consumidor sin conexión a la base de datos.")
+        return
+        
+    # 2. Configurar cliente MQTT
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.on_disconnect = on_disconnect
+
+    try:
+        # Intentar conectar al broker
+        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    except Exception as e:
+        print(f"No se pudo conectar al broker MQTT: {e}")
+        if conn:
+            conn.close()
+        return
+
+    # Bucle principal para mantener el cliente MQTT escuchando
+    try:
+        client.loop_forever()
+    except KeyboardInterrupt:
+        print("\nConsumer detenido manualmente.")
+    finally:
+        # Asegurarse de cerrar la conexión DB al salir
+        if conn:
+            conn.close()
+        client.disconnect()
+
+if __name__ == "__main__":
+    main()
