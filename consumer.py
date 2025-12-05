@@ -1,245 +1,129 @@
 import json
 import paho.mqtt.client as mqtt
 import psycopg2
-import math
-from datetime import datetime, timedelta
+import math # ¡Necesario para la función Haversine!
 
-# Cargar variables de entorno desde el archivo .env
-load_dotenv()
 
-# --- 1. CONFIGURACIÓN ---
-MQTT_BROKER = os.getenv("MQTT_BROKER")
-MQTT_PORT = int(os.getenv("MQTT_PORT"))
-MQTT_TOPIC = os.getenv("MQTT_TOPIC")
+CENTRO_LAT = 20.734482
+CENTRO_LNG = -103.455893
+RADIO_MAX_KM = 0.5 
+TEMP_CRITICA_ALTA = 39.5
+TEMP_CRITICA_BAJA = 36.0
+PULSO_CRITICO_ALTO = 85
+PULSO_CRITICO_BAJO = 50
 
-DB_HOST = os.getenv("DB_HOST")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_PORT = os.getenv("DB_PORT")
-
-# Umbrales (Ejemplos)
-TEMP_THRESHOLD_HIGH = 39.5
-PULSE_THRESHOLD_HIGH = 85
-PULSE_THRESHOLD_LOW = 45
-GEOFENCE_LAT_CENTER = 20.734503
-GEOFENCE_LNG_CENTER = -103.455896
-GEOFENCE_RADIUS_KM = 0.5 # 500 metros
-
-# Inicialización de conexión a la base de datos
-conn = None
-cur = None
-
-def get_db_connection():
-    """Establece la conexión a la base de datos PostgreSQL."""
-    global conn, cur
-    try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            port=DB_PORT
-        )
-        cur = conn.cursor()
-        print("Conexión a PostgreSQL establecida con éxito.")
-    except Exception as e:
-        print(f"Error al conectar a PostgreSQL: {e}")
-        conn = None
-        cur = None
-
-# --- 2. LÓGICA DE DETECCIÓN DE ALERTAS ---
 
 def haversine(lat1, lon1, lat2, lon2):
     """Calcula la distancia Haversine entre dos puntos (en km)."""
+    R = 6371 
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    
+    a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
     R = 6371  # Radio de la Tierra en kilómetros
 
-    lat1_rad = math.radians(lat1)
-    lon1_rad = math.radians(lon1)
-    lat2_rad = math.radians(lat2)
-    lon2_rad = math.radians(lon2)
-
-    dlon = lon2_rad - lon1_rad
-    dlat = lat2_rad - lat1_rad
-
-    a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-    distance = R * c
-    return distance
 
-def check_for_alerts(id_vaca, temp, pulso, lat, lng, riesgo):
-    """Evalúa los datos y devuelve una lista de alertas detectadas."""
-    alertas = []
-    
-    # 1. Alerta de Temperatura
-    if temp > TEMP_THRESHOLD_HIGH:
-        alertas.append({
-            'tipo': 'Temperatura Alta',
-            'mensaje': f"Temperatura corporal crítica ({temp}°C).",
-            'lat': lat,
-            'lng': lng
-        })
-        
-    # 2. Alerta de Pulso
-    if pulso > PULSE_THRESHOLD_HIGH:
-        alertas.append({
-            'tipo': 'Taquicardia',
-            'mensaje': f"Pulso cardiaco anormalmente alto ({pulso} ppm).",
-            'lat': lat,
-            'lng': lng
-        })
-    elif pulso < PULSE_THRESHOLD_LOW:
-        alertas.append({
-            'tipo': 'Bradicardia',
-            'mensaje': f"Pulso cardiaco anormalmente bajo ({pulso} ppm).",
-            'lat': lat,
-            'lng': lng
-        })
-        
-    # 3. Alerta de Geocerca (Geofence)
-    distance = haversine(lat, lng, GEOFENCE_LAT_CENTER, GEOFENCE_LNG_CENTER)
-    if distance > GEOFENCE_RADIUS_KM:
-        alertas.append({
-            'tipo': 'Fuera de Geocerca',
-            'mensaje': f"Vaca fuera del perímetro de pastoreo. Distancia: {distance:.2f} km.",
-            'lat': lat,
-            'lng': lng
-        })
+    return R * c
 
-    # 4. Alerta de Riesgo (si el dispositivo la envía)
-    if riesgo == 1:
-        alertas.append({
-            'tipo': 'Riesgo Alto Detectado',
-            'mensaje': "El dispositivo ha reportado un estado de riesgo alto.",
-            'lat': lat,
-            'lng': lng
-        })
-        
-    return alertas
+def check_geofence(lat, lng):
+    """Devuelve True si la vaca está fuera de la cerca."""
+    distancia = haversine(CENTRO_LAT, CENTRO_LNG, lat, lng)
+    return distancia > RADIO_MAX_KM
 
-# --- 3. FUNCIONES DE CONEXIÓN MQTT ---
-
-def on_connect(client, userdata, flags, rc):
-    """Se llama cuando el cliente recibe una respuesta CONNACK del servidor."""
-    if rc == 0:
-        print("Conectado al broker MQTT. Suscribiéndose al tema...")
-        client.subscribe(MQTT_TOPIC)
-    else:
-        print(f"Fallo de conexión. Código: {rc}")
-
-def on_disconnect(client, userdata, rc):
-    """Se llama cuando el cliente se desconecta del broker MQTT."""
-    print(f"Desconectado del broker MQTT con código: {rc}")
-    global conn
-    if conn:
-        try:
-            conn.close()
-            print("Conexión a PostgreSQL cerrada.")
-        except Exception as e:
-            print(f"Error al cerrar la conexión a PostgreSQL: {e}")
-
-# --- 4. FUNCIÓN PRINCIPAL DE MANEJO DE MENSAJES (on_message) ---
+# --- 3. CONEXIÓN A LA BASE DE DATOS (Asegúrate de que la conexión sea externa a la función) ---
+try:
+    conn = psycopg2.connect(
+        dbname="ganaderoiot",
+        user="iot",
+        password="1234",
+        host="localhost"
+    )
+    cur = conn.cursor()
+    print("✅ Conexión a DB establecida.")
+except Exception as e:
+    print(f"❌ ERROR CRÍTICO: Falló la conexión a PostgreSQL: {e}")
+    exit()
 
 def on_message(client, userdata, msg):
-    if not cur:
-        print("Error: No hay conexión a la base de datos.")
-        return
 
     try:
         data = json.loads(msg.payload.decode())
-        
-        # --- GENERACIÓN DE TIMESTAMP CORRECTO ---
-        # Usamos la hora actual del servidor (UTC) en formato ISO.
-        # Esto asegura un formato compatible con PostgreSQL y precisión.
-        ts_now = datetime.utcnow().isoformat()
-        
-        # Extracción de datos
-        id_vaca = data.get("id_vaca")
-        lat = data.get("lat")
-        lng = data.get("lng")
-        # Asumiendo un valor fijo para el área (requerido por la DB)
-        area = data.get("area", "TEC") 
-        temp = data.get("temperatura")
-        pulso = data.get("pulso")
-        riesgo = data.get("riesgo")
 
-        # Verificación básica de datos esenciales
-        if None in [id_vaca, lat, lng, temp, pulso, riesgo]:
-            print(f"Datos faltantes en el payload: {data}")
-            return
-            
+        # Extracción de datos
+        id_vaca = data["id_vaca"]
+        ts = data["timestamp"]
+        lat = data["lat"]
+        lng = data["lng"]
+        area = "TEC"
+        temp = data["temperatura"]
+        pulso = data["pulso"]
+        riesgo = data["riesgo"]
+
         # --- INSERCIÓN DE DATOS BRUTOS ---
         cur.execute("""
             INSERT INTO ubicacion(id_vaca, ts, lat, lng, area)
             VALUES (%s,%s,%s,%s,%s)
-        """, (id_vaca, ts_now, lat, lng, area)) 
+        """, (id_vaca, ts, lat, lng, area))
 
         cur.execute("""
             INSERT INTO salud(id_vaca, ts, temperatura, pulso, riesgo)
             VALUES (%s,%s,%s,%s,%s)
-        """, (id_vaca, ts_now, temp, pulso, riesgo))
+        """, (id_vaca, ts, temp, pulso, riesgo))
 
-        # --- DETECCIÓN DE ALERTAS ---
-        alertas_detectadas = check_for_alerts(id_vaca, temp, pulso, lat, lng, riesgo)
+        
+        # --- LÓGICA DE DETECCIÓN DE ALERTAS (AQUÍ ESTÁ EL CAMBIO) ---
+        alertas_detectadas = []
+        
+        # 1. Alerta de Geocerca
+        if check_geofence(lat, lng):
+            dist = haversine(CENTRO_LAT, CENTRO_LNG, lat, lng)
+            alertas_detectadas.append({
+                "tipo": "Geocerca",
+                "mensaje": f"Salió de cerca digital. Distancia: {dist:.2f} km.",
+                "lat": lat, "lng": lng
+            })
+
+        # 2. Alerta de Temperatura
+        if temp > TEMP_CRITICA_ALTA:
+            alertas_detectadas.append({"tipo": "TemperaturaAlta", "mensaje": f"Temp. Crítica: {temp}°C", "lat": lat, "lng": lng})
+        elif temp < TEMP_CRITICA_BAJA:
+            alertas_detectadas.append({"tipo": "TemperaturaBaja", "mensaje": f"Temp. Baja: {temp}°C", "lat": lat, "lng": lng})
+            
+        # 3. Alerta de Pulso
+        if pulso > PULSO_CRITICO_ALTO:
+            alertas_detectadas.append({"tipo": "PulsoAlto", "mensaje": f"Pulso Crítico Alto: {pulso} bpm", "lat": lat, "lng": lng})
+        elif pulso < PULSO_CRITICO_BAJO:
+            alertas_detectadas.append({"tipo": "PulsoBajo", "mensaje": f"Pulso Crítico Bajo: {pulso} bpm", "lat": lat, "lng": lng})
 
         # --- INSERCIÓN DE ALERTAS ---
         for alerta in alertas_detectadas:
             cur.execute("""
                 INSERT INTO alertas(id_vaca, ts, tipo_alerta, mensaje, lat, lng)
                 VALUES (%s, %s, %s, %s, %s, %s);
-            """, (id_vaca, ts_now, alerta['tipo'], alerta['mensaje'], alerta['lat'], alerta['lng']))
+            """, (id_vaca, ts, alerta['tipo'], alerta['mensaje'], alerta['lat'], alerta['lng']))
         
-        # Confirmar los cambios en la base de datos
+        # Aplicar todos los cambios (ubicacion, salud, alertas)
         conn.commit()
-        print(f"Datos y {len(alertas_detectadas)} alertas insertadas para la Vaca {id_vaca} a las {ts_now}")
         
-    except json.JSONDecodeError:
-        print(f"Error decodificando JSON: {msg.payload}")
-    except KeyError as e:
-        print(f"Error: Clave faltante en el payload: {e}")
-    except psycopg2.Error as e:
-        print(f"Error de base de datos al insertar datos: {e}")
-        if conn:
-            conn.rollback() # Deshacer la transacción si hay error
+        # Mensaje de confirmación de ALERTAS
+        print(f"✅ Datos insertados y {len(alertas_detectadas)} alertas procesadas para {id_vaca}")
+
     except Exception as e:
-        print(f"Error inesperado en on_message: {e}")
+        print(f"❌ ERROR en on_message: {e}")
+        conn.rollback() # Revierte los cambios si falla algo
 
+# --- 5. Configuración y Bucle MQTT ---
+client = mqtt.Client()
+client.on_message = on_message
 
-# --- 5. FUNCIÓN PRINCIPAL DE EJECUCIÓN ---
-
-def main():
-    # 1. Establecer conexión DB
-    get_db_connection()
-    if not conn:
-        print("No se pudo iniciar el consumidor sin conexión a la base de datos.")
-        return
-        
-    # 2. Configurar cliente MQTT
-    client = mqtt.Client()
-    client.on_connect = on_connect
-    client.on_message = on_message
-    client.on_disconnect = on_disconnect
-
-    try:
-        # Intentar conectar al broker
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    except Exception as e:
-        print(f"No se pudo conectar al broker MQTT: {e}")
-        if conn:
-            conn.close()
-        return
-
-    # Bucle principal para mantener el cliente MQTT escuchando
-    try:
-        client.loop_forever()
-    except KeyboardInterrupt:
-        print("\nConsumer detenido manualmente.")
-    finally:
-        # Asegurarse de cerrar la conexión DB al salir
-        if conn:
-            conn.close()
-        client.disconnect()
-
-if __name__ == "__main__":
-    main()
+try:
+    client.connect("broker.mqtt.cool", 1883, 60)
+    client.subscribe("vaca/telemetria")
+    print("✅ Suscrito a vaca/telemetria. Escuchando mensajes...")
+    client.loop_forever()
+except Exception as e:
+    print(f"❌ ERROR MQTT: {e}")
