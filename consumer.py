@@ -3,7 +3,7 @@ import paho.mqtt.client as mqtt
 import psycopg2
 import math # ¡Necesario para la función Haversine!
 
-# --- 1. CONFIGURACIÓN DE UMBRALES Y GEOFENCE ---
+
 CENTRO_LAT = 20.734482
 CENTRO_LNG = -103.455893
 RADIO_MAX_KM = 0.5 
@@ -12,7 +12,6 @@ TEMP_CRITICA_BAJA = 36.0
 PULSO_CRITICO_ALTO = 85
 PULSO_CRITICO_BAJO = 50
 
-# --- 2. FUNCIONES AUXILIARES PARA DETECCIÓN ---
 
 def haversine(lat1, lon1, lat2, lon2):
     """Calcula la distancia Haversine entre dos puntos (en km)."""
@@ -23,8 +22,11 @@ def haversine(lat1, lon1, lat2, lon2):
     delta_lambda = math.radians(lon2 - lon1)
     
     a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
+    R = 6371  # Radio de la Tierra en kilómetros
+
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    
+
+
     return R * c
 
 def check_geofence(lat, lng):
@@ -46,11 +48,11 @@ except Exception as e:
     print(f"❌ ERROR CRÍTICO: Falló la conexión a PostgreSQL: {e}")
     exit()
 
-# --- 4. FUNCIÓN PRINCIPAL DE MANEJO DE MENSAJES (on_message) ---
 def on_message(client, userdata, msg):
+
     try:
         data = json.loads(msg.payload.decode())
-        
+
         # Extracción de datos
         id_vaca = data["id_vaca"]
         ts = data["timestamp"]
